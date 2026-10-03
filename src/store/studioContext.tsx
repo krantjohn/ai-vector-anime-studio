@@ -17,6 +17,7 @@ import {
 import { DEFAULT_ANIME_PROJECT } from '../data/defaultAnimeProject';
 import { createMasterMikaBaseProject, createMasterMika10kProject } from '../data/masterMikaProject';
 import { createSylphieProject, createSylphie10kProject } from '../data/sylphieProject';
+import { createDeocinProject, createDeocin10kProject, DEOCIN_PROJECT } from '../data/deocinProject';
 import { ExporterEngine } from '../engine/exporter';
 import { ProjectData } from '../types/anime';
 
@@ -65,6 +66,8 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
     if (typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const proj = params.get('project');
+      if (proj === 'deocin10k') return createDeocin10kProject();
+      if (proj === 'deocin' || proj === 'live2d') return createDeocinProject();
       if (proj === 'sylphie10k') return createSylphie10kProject();
       if (proj === 'sylphie' || proj === 'original') return createSylphieProject();
       if (proj === 'mika10k') return createMasterMika10kProject();
@@ -88,11 +91,44 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
   const [layers, setLayers] = useState<LayersState>(DEFAULT_LAYERS_STATE);
   const [soloLayer, setSoloLayer] = useState<LayerId | null>(null);
 
+  // Live2D Dissection & Occlusion State
+  const [isLive2dExploded, setIsLive2dExploded] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.location?.search) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('exploded') === 'true' || params.get('dissect') === 'true';
+    }
+    return false;
+  });
+  const [live2dExplodeRatio, setLive2dExplodeRatioState] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.location?.search) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('exploded') === 'true' || params.get('dissect') === 'true') return 1.0;
+    }
+    return 0;
+  });
+  const [dissectionOffsets, setDissectionOffsets] = useState<Record<string, { x: number; y: number }>>(() => {
+    const res: Record<string, { x: number; y: number }> = {};
+    if (typeof window !== 'undefined' && window.location?.search) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('exploded') === 'true' || params.get('dissect') === 'true') {
+        const dx = parseFloat(params.get('dx') || '280');
+        const dy = parseFloat(params.get('dy') || '35');
+        res['hair_front'] = { x: dx, y: dy };
+        res['hair_back'] = { x: -120, y: 15 };
+        res['clothes'] = { x: 0, y: 40 };
+      }
+    }
+    return res;
+  });
+  const [activeDissectPart, setActiveDissectPart] = useState<string | null>(null);
+
   // Playback & Timeline State
   const [currentStep, setCurrentStepState] = useState<number>(() => {
     if (typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const proj = params.get('project');
+      if (proj === 'deocin10k') return 10000;
+      if (proj === 'deocin' || proj === 'live2d') return 139;
       if (proj === 'sylphie10k') return 10000;
       if (proj === 'sylphie' || proj === 'original') return 1963;
       if (proj === 'mika10k') return 10000;
@@ -349,6 +385,76 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
   );
 
   // ----------------------------------------------------
+  // Live2D Dissection & Explode View Handlers
+  // ----------------------------------------------------
+  const toggleLive2dExplode = useCallback(() => {
+    setIsLive2dExploded((prev) => {
+      const next = !prev;
+      if (next) {
+        setLive2dExplodeRatioState(1.0);
+        setDissectionOffsets({
+          hair_front: { x: 280, y: 35 },
+          hair_back: { x: -120, y: 15 },
+          clothes: { x: 0, y: 40 },
+        });
+      } else {
+        setLive2dExplodeRatioState(0);
+        setDissectionOffsets({});
+      }
+      return next;
+    });
+  }, []);
+
+  const setLive2dExplode = useCallback((exploded: boolean) => {
+    setIsLive2dExploded(exploded);
+    if (exploded) {
+      setLive2dExplodeRatioState(1.0);
+      setDissectionOffsets({
+        hair_front: { x: 280, y: 35 },
+        hair_back: { x: -120, y: 15 },
+        clothes: { x: 0, y: 40 },
+      });
+    } else {
+      setLive2dExplodeRatioState(0);
+      setDissectionOffsets({});
+    }
+  }, []);
+
+  const setLive2dExplodeRatio = useCallback((ratio: number) => {
+    const clamped = Math.max(0, Math.min(1, ratio));
+    setLive2dExplodeRatioState(clamped);
+    if (clamped <= 0.001) {
+      setIsLive2dExploded(false);
+      setDissectionOffsets({});
+    } else {
+      setIsLive2dExploded(true);
+      setDissectionOffsets({
+        hair_front: { x: Math.round(280 * clamped), y: Math.round(35 * clamped) },
+        hair_back: { x: Math.round(-120 * clamped), y: Math.round(15 * clamped) },
+        clothes: { x: 0, y: Math.round(40 * clamped) },
+      });
+    }
+  }, []);
+
+  const setPartOffset = useCallback((partId: string, offset: { x: number; y: number }) => {
+    setDissectionOffsets((prev) => ({
+      ...prev,
+      [partId]: offset,
+    }));
+    setActiveDissectPart(partId);
+    if (Math.abs(offset.x) > 3 || Math.abs(offset.y) > 3) {
+      setIsLive2dExploded(true);
+    }
+  }, []);
+
+  const resetDissectionOffsets = useCallback(() => {
+    setIsLive2dExploded(false);
+    setLive2dExplodeRatioState(0);
+    setDissectionOffsets({});
+    setActiveDissectPart(null);
+  }, []);
+
+  // ----------------------------------------------------
   // Canvas Transform Handlers
   // ----------------------------------------------------
   const panTo = useCallback((x: number, y: number) => {
@@ -423,6 +529,10 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
       gridVisible,
       layers,
       soloLayer,
+      isLive2dExploded,
+      live2dExplodeRatio,
+      dissectionOffsets,
+      activeDissectPart,
       currentStep,
       totalSteps,
       currentStepIndex: Math.max(0, currentStep - 1),
@@ -436,6 +546,11 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
       currentStepData,
       standaloneSvgSource,
       domTree,
+      toggleLive2dExplode,
+      setLive2dExplode,
+      setLive2dExplodeRatio,
+      setPartOffset,
+      resetDissectionOffsets,
       toggleLayer,
       setLayerVisibility,
       toggleSoloLayer,
@@ -469,6 +584,10 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
       gridVisible,
       layers,
       soloLayer,
+      isLive2dExploded,
+      live2dExplodeRatio,
+      dissectionOffsets,
+      activeDissectPart,
       currentStep,
       totalSteps,
       currentStage,
@@ -480,6 +599,11 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
       currentStepData,
       standaloneSvgSource,
       domTree,
+      toggleLive2dExplode,
+      setLive2dExplode,
+      setLive2dExplodeRatio,
+      setPartOffset,
+      resetDissectionOffsets,
       toggleLayer,
       setLayerVisibility,
       toggleSoloLayer,

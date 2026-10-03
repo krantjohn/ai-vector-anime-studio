@@ -17,10 +17,12 @@ import {
   Sliders,
   Image as ImageIcon,
   Upload,
+  UnfoldVertical,
 } from 'lucide-react';
 import { useStudio } from '../../store/studioContext';
 import { MASTER_MIKA_PROJECT, createMasterMika10kProject, createMasterMikaBaseProject } from '../../data/masterMikaProject';
 import { SYLPHIE_PROJECT, createSylphieProject, createSylphie10kProject } from '../../data/sylphieProject';
+import { DEOCIN_PROJECT, createDeocinProject, createDeocin10kProject } from '../../data/deocinProject';
 import { AiAnimeGenerator } from '../../engine/aiAnimeGenerator';
 import { StepDensityEngine } from '../../engine/stepDensityEngine';
 import { ImageVectorizer } from '../../engine/imageVectorizer';
@@ -41,7 +43,15 @@ export interface AiChatPanelProps {
 }
 
 export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className = '' }) => {
-  const { project, setProject, setCurrentStep, setIsPlaying, currentStep } = useStudio();
+  const {
+    project,
+    setProject,
+    setCurrentStep,
+    setIsPlaying,
+    currentStep,
+    isLive2dExploded,
+    toggleLive2dExplode,
+  } = useStudio();
   const [inputPrompt, setInputPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
@@ -63,6 +73,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
 根据你的专业审美要求，我已对引擎进行深度去“AI味”重塑，全面学习了 **手绘墨线骨架（Weighted Ink Contours）**、**纯净赛璐璐硬边切面（Hard-Edge Cel Shading）**、**通透底色（Clean Pastel Palette）** 与 **灵动二次元五官（Manga Expressive Features）** 的大师技法！
 
 你可以直接点击下方灵感标签或自然语言指挥我绘制，例如：
+* 🧩 **“幻梦航标 德奥欣 (Live2D 拆解版)”**：【水手服·闭合头模·可拆刘海】业界级 Live2D 拆件规范！移开前发完整展现圆润头骨脸模、完整双眼与害羞红晕，支持 Illustrator dx/dy 测量 HUD 标注与爆炸图！
 * 🦋 **“原创星辉蝶愿 希尔菲”**：【粉毛·金瞳·少女身材】全新原创二次元美少女！零重力浮空身段、流光星蝶召唤、纯净赛璐璐硬折面与加重墨线骨架
 * 🎨 **“手绘墨线 Penia 粉发原画”**：真实手绘原画笔墨质感，娇嗔侧颜与灵动长发
 * 🖤 **“玄龙门主 龙华妃姬”**：蔚蓝档案夏日沙滩椅，优雅旗袍、墨镜与硬折面阴影
@@ -87,6 +98,7 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
 
   // Quick Action Chips with authentic anime masterworks & diverse actions
   const quickPrompts = [
+    { label: '🧩 德奥欣 (Live2D拆解底模)', prompt: '请绘制水手服少女德奥欣，具备完整闭合头骨脸模与Live2D独立拆件前发，墨绿水手领双金条！' },
     { label: '🦋 原创希尔菲 (粉毛金瞳少女)', prompt: '请原创绘制一位粉毛金瞳的少女身材魔法少女希尔菲，流光星蝶浮空召唤姿态！' },
     { label: '🌅 晨光伸懒腰 (舒展微风)', prompt: '请绘制粉发晨光伸懒腰少女，微风白衬衫，仰头闭目治愈神态！' },
     { label: '💃 露背礼服回眸 (高贵晚宴)', prompt: '请绘制银紫发优雅大露背晚礼服回眸少女，紫花发饰高贵侧颜！' },
@@ -104,6 +116,8 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
 
   const getPoseDescription = (pose?: string): string => {
     switch (pose) {
+      case 'deocin':
+        return '正统水手服端庄微倾站姿，墨绿水手领饰双道细金条，内嵌完整闭合头模与独立可位移前发呆毛';
       case 'sylphie':
         return '原创少女身材零重力浮空身姿，樱粉长发与双侧星蝶随风扬起，平展双臂召唤流光灵蝶';
       case 'stretch':
@@ -216,6 +230,17 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
       let generatedProject: ProjectData;
 
       const lower = text.toLowerCase();
+      const isDeocin =
+        lower.includes('德奥欣') ||
+        lower.includes('deocin') ||
+        lower.includes('live2d') ||
+        lower.includes('拆件') ||
+        lower.includes('拆解') ||
+        lower.includes('闭合脸模') ||
+        lower.includes('闭合头骨') ||
+        lower.includes('闭合底模') ||
+        lower.includes('双金条') ||
+        (lower.includes('水手服') && (lower.includes('短发') || lower.includes('绿领') || lower.includes('虎牙') || lower.includes('呆毛') || lower.includes('底模') || lower.includes('可拆') || lower.includes('测量')));
       const isSylphie =
         lower.includes('希尔菲') ||
         lower.includes('sylphie') ||
@@ -228,7 +253,26 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
       const isMika = lower.includes('弥香') || lower.includes('mika') || (lower.includes('天使') && lower.includes('圣三一'));
       const is10k = lower.includes('10000') || lower.includes('10,000') || lower.includes('一万步') || lower.includes('上万步');
 
-      if (isSylphie) {
+      if (isDeocin) {
+        if (is10k) {
+          generatedProject = createDeocin10kProject();
+          replyText = `### 🧩 幻梦航标 · 德奥欣 (10,000 步超微步 Live2D 旗舰版) 已生成！
+
+已根据要求将具备 Live2D 拆件规范与完整闭合底模的德奥欣扩展至 **10,000 微步**。`;
+        } else {
+          generatedProject = createDeocinProject();
+          replyText = `### 🧩 幻梦航标 · 德奥欣 (${generatedProject.steps.length.toLocaleString()} 真实高精矢量笔触 · 100% Live2D 拆件规范杰作) 已完成！
+
+针对你的核心需求【Live2D 拆件规范、闭合脸模穿透遮挡、水手服双金条、拒绝镂空缺损】，AI 智能体已完成专业级工程解构：
+- 💀 **完整闭合头骨脸模 (Full Occluded Cranium Dome)**: 前发移开后，底层为顶部饱满闭合的完整圆润头模 (y: 175~508)，完整双眉、双眼球虹膜、腮红与三道害羞斜线，绝无偷工减料镂空；
+- ✂️ **独立可拆前发 (Dissectable Front Hair & Ahoge)**: 前额碎发、鬓角、标志性大呆毛与发夹为独立闭合图元，支持一键爆炸拆解或交互拖拽；
+- 📐 **Illustrator 测量 HUD**: 移开前发后自动呼出专业标尺与测量指示器（dx: 280pt, dy: 35pt），对齐工程标准；
+- ⚓ **经典水手服双金条**: 墨绿 (Forest Teal) 大翻领搭配两道明黄细条滚边，亮黄与金棕立体领巾结，层次严密清晰；
+- ✒️ **DoG 加重墨线骨架**: 坚决杜绝碎斑与杂乱插值，全图由贝塞尔样条高精度矢量闭合路径构成！
+
+包含 **${generatedProject.steps.length.toLocaleString()} 组真实贝塞尔矢量微步**。你可以点击右上角或图层面板中的【🧩 一键 Live2D 拆解】按钮，直观检视穿透遮挡与闭合底模！`;
+        }
+      } else if (isSylphie) {
         if (is10k) {
           generatedProject = createSylphie10kProject();
           replyText = `### ✨ 星辉蝶愿 · 希尔菲 (10,000 步超微步原创杰作) 已生成！
@@ -526,6 +570,21 @@ export const AiChatPanel: React.FC<AiChatPanelProps> = ({ onSwitchTab, className
                         <Play className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
                         <span>动态回放</span>
                       </button>
+
+                      {/* If Deocin / Live2D project, quick 1-click Dissect button */}
+                      {(msg.projectPayload.title.includes('德奥欣') || msg.projectPayload.title.includes('Live2D')) && toggleLive2dExplode && (
+                        <button
+                          onClick={() => {
+                            handleApplyToCanvas(msg.projectPayload!);
+                            toggleLive2dExplode();
+                          }}
+                          title="一键移开前发，检视闭合头骨脸模与Illustrator测量HUD"
+                          className="py-1.5 px-2.5 rounded-lg font-bold text-[11px] bg-gradient-to-r from-amber-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 text-amber-300 border border-amber-500/40 flex items-center justify-center gap-1 transition-all shadow-sm"
+                        >
+                          <UnfoldVertical className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{isLive2dExploded ? '还原' : 'Live2D拆解'}</span>
+                        </button>
+                      )}
 
                       {onSwitchTab && (
                         <button

@@ -77,18 +77,44 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
     else studio.toggleGrid();
   }, [controlledOnToggleGrid, studio]);
 
-  // Pan dragging state
+  // Pan and Live2D Dissection Part Dragging state
   const [isPanning, setIsPanning] = useState(false);
   const lastPointerRef = useRef<Point>({ x: 0, y: 0 });
   const isPointerDownRef = useRef(false);
+  const isDraggingPartRef = useRef(false);
+  const dragStartPosRef = useRef<Point>({ x: 0, y: 0 });
+  const initialPartOffsetRef = useRef<Point>({ x: 0, y: 0 });
 
-  // Pointer Down: Acquire pointer capture
+  // Pointer Down: Acquire pointer capture & check for Live2D part drag vs Pan
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Only drag on left (0) or middle (1) mouse button
     if (e.button !== 0 && e.button !== 1) return;
 
     // Do not initiate pan if clicking on an interactive control button
     if ((e.target as HTMLElement).closest('button, input, [role="toolbar"]')) {
+      return;
+    }
+
+    const targetEl = e.target as SVGElement | HTMLElement;
+    const isHairTarget = Boolean(
+      targetEl.closest?.('[data-part="hair_front"]') ||
+      targetEl.closest?.('#layer-hair-front') ||
+      targetEl.closest?.('#live2d-part-hair_front') ||
+      targetEl.id === 'hair-bangs' ||
+      targetEl.id === 'hair-ahoge' ||
+      targetEl.id?.includes('hairclip') ||
+      targetEl.id?.includes('hair-front')
+    );
+
+    // If clicking hair with Shift, Alt, or when already exploded, initiate Part Drag!
+    if (e.shiftKey || (isHairTarget && (studio.isLive2dExploded || e.altKey))) {
+      isDraggingPartRef.current = true;
+      dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+      const cur = studio.dissectionOffsets['hair_front'] || { x: 0, y: 0 };
+      initialPartOffsetRef.current = { ...cur };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
       return;
     }
 
@@ -103,8 +129,18 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
     lastPointerRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  // Pointer Move: Pan canvas
+  // Pointer Move: Pan canvas or Drag Live2D Part
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingPartRef.current) {
+      const dx = (e.clientX - dragStartPosRef.current.x) / transform.scale;
+      const dy = (e.clientY - dragStartPosRef.current.y) / transform.scale;
+      studio.setPartOffset('hair_front', {
+        x: Math.round(initialPartOffsetRef.current.x + dx),
+        y: Math.round(initialPartOffsetRef.current.y + dy),
+      });
+      return;
+    }
+
     if (!isPointerDownRef.current) return;
 
     const dx = e.clientX - lastPointerRef.current.x;
@@ -116,6 +152,16 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
 
   // Pointer Up / Cancel: Release pointer capture
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDraggingPartRef.current) {
+      isDraggingPartRef.current = false;
+      try {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+      } catch {}
+      return;
+    }
+
     if (isPointerDownRef.current) {
       isPointerDownRef.current = false;
       setIsPanning(false);
@@ -362,6 +408,23 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
               <stop offset="0%" stopColor="#FB7185" stopOpacity="0.6" />
               <stop offset="100%" stopColor="#FB7185" stopOpacity="0" />
             </radialGradient>
+            {/* Deocin Live2D Flagship Gradients */}
+            <radialGradient id="deocin-iris-gold" cx="50%" cy="45%" r="55%">
+              <stop offset="0%" stopColor="#FEF9C3" />
+              <stop offset="35%" stopColor="#FDE047" />
+              <stop offset="70%" stopColor="#EAB308" />
+              <stop offset="90%" stopColor="#B45309" />
+              <stop offset="100%" stopColor="#1C1917" />
+            </radialGradient>
+            <linearGradient id="deocin-hair-slate" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#5B506D" />
+              <stop offset="50%" stopColor="#3B3448" />
+              <stop offset="100%" stopColor="#231C2E" />
+            </linearGradient>
+            <radialGradient id="blush-grad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FDA4AF" stopOpacity="0.65" />
+              <stop offset="100%" stopColor="#FDA4AF" stopOpacity="0" />
+            </radialGradient>
             {defs}
           </defs>
 
@@ -380,7 +443,7 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
             {children ? (
               children
             ) : studio.project && studio.project.title !== '紫发金瞳少女 (Purple-haired Gold-eyed Anime Girl)' ? (
-              /* Dynamic Multi-Step Project (Sylphie / Master Mika / AI Generated / Vectorized) */
+              /* Dynamic Multi-Step Project (Deocin Live2D / Sylphie / Master Mika / AI Generated / Vectorized) */
               <>
                 {(() => {
                   const stage1End = studio.project?.stages?.[0]?.endStep ?? 10;
@@ -391,19 +454,103 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
                     .filter((s: any) => !isPastSketch || !s.xmlPatch?.includes('data-sketch="true"'))
                     .filter((s: any) => studio.isLayerVisible(s.layerId));
 
-                  const htmlContent = visibleSteps.map((s: any) => {
+                  const hairFrontOffset = studio.dissectionOffsets['hair_front'] || { x: 0, y: 0 };
+                  const hairBackOffset = studio.dissectionOffsets['hair_back'] || { x: 0, y: 0 };
+                  const clothesOffset = studio.dissectionOffsets['clothes'] || { x: 0, y: 0 };
+
+                  // Partition steps by Live2D part semantics
+                  const partGroups: Record<string, string[]> = {
+                    background: [],
+                    hair_back: [],
+                    clothes: [],
+                    head_base: [],
+                    eyes: [],
+                    other: [],
+                    hair_front: [],
+                  };
+
+                  for (const s of visibleSteps) {
+                    const explicitPart = s.metadata?.live2dPart || (
+                      s.xmlPatch.includes('data-part="hair_front"') ? 'hair_front' :
+                      s.xmlPatch.includes('data-part="hair_back"') ? 'hair_back' :
+                      s.xmlPatch.includes('data-part="head_base"') ? 'head_base' :
+                      s.xmlPatch.includes('data-part="eyes"') ? 'eyes' :
+                      s.xmlPatch.includes('data-part="clothes"') ? 'clothes' :
+                      s.xmlPatch.includes('data-part="background"') ? 'background' :
+                      s.layerId === 'hair' ? (s.id >= 96 ? 'hair_front' : 'hair_back') :
+                      s.layerId === 'skin_body' ? 'head_base' :
+                      s.layerId === 'iris' ? 'eyes' :
+                      s.layerId === 'clothes' ? 'clothes' :
+                      s.layerId === 'background' ? 'background' :
+                      'other'
+                    );
+
                     const layerAttr = s.layerId ? ` data-layer="${s.layerId}"` : '';
+                    let snippet = `<g${layerAttr}>${s.xmlPatch}</g>`;
                     if (isSoloActive && s.layerId !== studio.soloLayer) {
-                      return `<g${layerAttr} style="opacity: 0.15; filter: grayscale(85%); transition: opacity 0.2s ease;">${s.xmlPatch}</g>`;
+                      snippet = `<g${layerAttr} style="opacity: 0.15; filter: grayscale(85%); transition: opacity 0.2s ease;">${s.xmlPatch}</g>`;
                     }
-                    return `<g${layerAttr}>${s.xmlPatch}</g>`;
-                  }).join('\n');
+
+                    if (partGroups[explicitPart]) {
+                      partGroups[explicitPart].push(snippet);
+                    } else {
+                      partGroups.other.push(snippet);
+                    }
+                  }
+
+                  const htmlSections: string[] = [];
+
+                  // 1. Background
+                  if (partGroups.background.length > 0) {
+                    htmlSections.push(`<g id="live2d-part-background" data-part="background">${partGroups.background.join('\n')}</g>`);
+                  }
+
+                  // 2. Hair Back (with offset)
+                  if (partGroups.hair_back.length > 0) {
+                    const transAttr = (hairBackOffset.x !== 0 || hairBackOffset.y !== 0)
+                      ? ` transform="translate(${hairBackOffset.x}, ${hairBackOffset.y})"`
+                      : '';
+                    htmlSections.push(`<g id="live2d-part-hair_back" data-part="hair_back"${transAttr} style="transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">${partGroups.hair_back.join('\n')}</g>`);
+                  }
+
+                  // 3. Clothes (with offset)
+                  if (partGroups.clothes.length > 0) {
+                    const transAttr = (clothesOffset.x !== 0 || clothesOffset.y !== 0)
+                      ? ` transform="translate(${clothesOffset.x}, ${clothesOffset.y})"`
+                      : '';
+                    htmlSections.push(`<g id="live2d-part-clothes" data-part="clothes"${transAttr} style="transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">${partGroups.clothes.join('\n')}</g>`);
+                  }
+
+                  // 4. Other/middle elements
+                  if (partGroups.other.length > 0) {
+                    htmlSections.push(`<g id="live2d-part-other">${partGroups.other.join('\n')}</g>`);
+                  }
+
+                  // 5. Head Base (100% Solid Occluded Cranium Dome)
+                  if (partGroups.head_base.length > 0) {
+                    htmlSections.push(`<g id="live2d-part-head_base" data-part="head_base">${partGroups.head_base.join('\n')}</g>`);
+                  }
+
+                  // 6. Eyes & Facial Features (Intact underneath hair)
+                  if (partGroups.eyes.length > 0) {
+                    htmlSections.push(`<g id="live2d-part-eyes" data-part="eyes">${partGroups.eyes.join('\n')}</g>`);
+                  }
+
+                  // 7. Hair Front (Dissectable & Draggable!)
+                  if (partGroups.hair_front.length > 0) {
+                    const transAttr = (hairFrontOffset.x !== 0 || hairFrontOffset.y !== 0)
+                      ? ` transform="translate(${hairFrontOffset.x}, ${hairFrontOffset.y})"`
+                      : '';
+                    htmlSections.push(`<g id="live2d-part-hair_front" data-part="hair_front"${transAttr} class="cursor-grab active:cursor-grabbing" style="transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);">${partGroups.hair_front.join('\n')}</g>`);
+                  }
+
+                  const fullHtml = htmlSections.join('\n');
 
                   return (
                     <g
                       id="dynamic-vector-artwork"
                       dangerouslySetInnerHTML={{
-                        __html: htmlContent,
+                        __html: fullHtml,
                       }}
                     />
                   );
@@ -526,11 +673,13 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
                     fill="#FFF7ED"
                     style={{ opacity: studio.currentStep >= 8 ? 1 : 0, transition: 'opacity 0.2s ease' }}
                   />
-                  {/* Face Base */}
+                  {/* Face Base - 100% Solid Closed Cranium Dome & Temples */}
                   <path
                     id="skin-face-base"
-                    d="M 270 340 C 265 420 290 480 340 515 C 370 535 400 540 400 540 C 400 540 430 535 460 515 C 510 480 535 420 530 340 Z"
+                    d="M 270 320 C 265 240 320 175 400 175 C 480 175 535 240 530 320 C 532 375 515 440 460 480 C 430 502 400 508 400 508 C 400 508 370 502 340 480 C 285 440 268 375 270 320 Z"
                     fill="#FFF7ED"
+                    stroke="#F6D5C2"
+                    strokeWidth="1"
                     style={{ opacity: studio.currentStep >= 8 ? 1 : 0, transition: 'opacity 0.2s ease' }}
                   />
                 </g>
@@ -561,12 +710,20 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
                   <circle id="catchlight-right-2" cx="464" cy="412" r="2" fill="#FFFFFF" opacity="0.9" style={{ opacity: studio.currentStep >= 32 ? 0.9 : 0, transition: 'opacity 0.2s ease' }} />
                 </g>
 
-                {/* 5. Hair Front (Bangs & Cowlick) */}
+                {/* 5. Hair Front (Bangs & Cowlick) - Dissectable & Draggable */}
                 <g
                   id="layer-hair-front"
                   data-layer="hair"
-                  className="vector-layer"
-                  style={studio.getLayerFilterStyle('hair')}
+                  className="vector-layer cursor-grab"
+                  transform={
+                    studio.dissectionOffsets['hair_front']
+                      ? `translate(${studio.dissectionOffsets['hair_front'].x}, ${studio.dissectionOffsets['hair_front'].y})`
+                      : undefined
+                  }
+                  style={{
+                    ...studio.getLayerFilterStyle('hair'),
+                    transition: 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease',
+                  }}
                 >
                   {/* Bangs */}
                   <path
@@ -681,6 +838,111 @@ export const VectorCanvas: React.FC<VectorCanvasProps> = ({
                   />
                 </g>
               </>
+            )}
+
+            {/* Adobe Illustrator Style HUD & Dimension Callout for both dynamic & prototype modes */}
+            {((studio.dissectionOffsets['hair_front']?.x ?? 0) !== 0 || (studio.dissectionOffsets['hair_front']?.y ?? 0) !== 0) && (
+              <g id="illustrator-dissection-hud" className="pointer-events-none select-none">
+                {/* Guide line from original center to displaced center */}
+                <line
+                  x1="400"
+                  y1="310"
+                  x2={400 + (studio.dissectionOffsets['hair_front']?.x || 0)}
+                  y2={310 + (studio.dissectionOffsets['hair_front']?.y || 0)}
+                  stroke="#EC4899"
+                  strokeWidth="1.5"
+                  strokeDasharray="4,4"
+                  opacity="0.65"
+                />
+
+                {/* Adobe Illustrator Bounding Box around moved Hair Front */}
+                <rect
+                  x={240 + (studio.dissectionOffsets['hair_front']?.x || 0)}
+                  y={105 + (studio.dissectionOffsets['hair_front']?.y || 0)}
+                  width="325"
+                  height="455"
+                  fill="none"
+                  stroke="#0284C7"
+                  strokeWidth="1.5"
+                  strokeDasharray="4,4"
+                  opacity="0.85"
+                />
+
+                {/* 8 Bounding Box Square Control Handles */}
+                {[
+                  [240 + (studio.dissectionOffsets['hair_front']?.x || 0), 105 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [402 + (studio.dissectionOffsets['hair_front']?.x || 0), 105 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [565 + (studio.dissectionOffsets['hair_front']?.x || 0), 105 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [240 + (studio.dissectionOffsets['hair_front']?.x || 0), 332 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [565 + (studio.dissectionOffsets['hair_front']?.x || 0), 332 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [240 + (studio.dissectionOffsets['hair_front']?.x || 0), 560 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [402 + (studio.dissectionOffsets['hair_front']?.x || 0), 560 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                  [565 + (studio.dissectionOffsets['hair_front']?.x || 0), 560 + (studio.dissectionOffsets['hair_front']?.y || 0)],
+                ].map(([hx, hy], idx) => (
+                  <rect
+                    key={idx}
+                    x={hx - 3.5}
+                    y={hy - 3.5}
+                    width="7"
+                    height="7"
+                    fill="#FFFFFF"
+                    stroke="#0284C7"
+                    strokeWidth="1.5"
+                  />
+                ))}
+
+                {/* Measurement Tooltip Tag matching Illustrator reference: dx: 345 pt, dy: 42.44 pt */}
+                <g transform={`translate(${400 + (studio.dissectionOffsets['hair_front']?.x || 0)}, ${145 + (studio.dissectionOffsets['hair_front']?.y || 0)})`}>
+                  <rect
+                    x="-65"
+                    y="-24"
+                    width="130"
+                    height="24"
+                    rx="4"
+                    fill="#0F172A"
+                    stroke="#38BDF8"
+                    strokeWidth="1"
+                    opacity="0.9"
+                  />
+                  <text
+                    x="0"
+                    y="-8"
+                    fill="#38BDF8"
+                    fontFamily="'Segoe UI', -apple-system, monospace"
+                    fontSize="11"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    dx: {(studio.dissectionOffsets['hair_front']?.x || 0).toFixed(1)}pt  dy: {(studio.dissectionOffsets['hair_front']?.y || 0).toFixed(1)}pt
+                  </text>
+                </g>
+
+                {/* Occluded Head Dome Verification Badge */}
+                <g transform="translate(400, 160)">
+                  <rect
+                    x="-95"
+                    y="-20"
+                    width="190"
+                    height="24"
+                    rx="12"
+                    fill="#059669"
+                    stroke="#34D399"
+                    strokeWidth="1"
+                    opacity="0.95"
+                  />
+                  <text
+                    x="0"
+                    y="-4"
+                    fill="#FFFFFF"
+                    fontFamily="'Segoe UI', sans-serif"
+                    fontSize="11"
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    ✓ 完整头骨脸模与双眼闭合底模
+                  </text>
+                </g>
+              </g>
             )}
           </g>
 

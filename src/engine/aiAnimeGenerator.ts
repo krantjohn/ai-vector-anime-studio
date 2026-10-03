@@ -27,7 +27,11 @@ import foxearData from '../data/foxearCompact.json';
 import sylphieData from '../data/sylphieCompact.json';
 import { createSylphieProject, createSylphie10kProject } from '../data/sylphieProject';
 
+// Live2D Flagship Masterpiece: Deocin Sailor Uniform with Closed Skull & Hair Dissection
+import { createDeocinProject, createDeocin10kProject } from '../data/deocinProject';
+
 export type AnimeActionPose =
+  | 'deocin'        // 幻梦航标 · 德奥欣 / 水手服双金条 / 完整头骨闭合脸模 / Live2D可拆件
   | 'sylphie'       // 原创粉毛金瞳少女 · 星辉蝶愿 / 浮空召唤 / 希尔菲
   | 'stretch'       // 晨光伸懒腰 / 舒展微风 / 仰头闭目 / 居家白衬衫
   | 'glance'        // 露背晚礼服回眸 / 高贵侧视 / 宴会优雅
@@ -222,6 +226,19 @@ export class AiAnimeGenerator {
     // 1. Action & Pose Detection
     let actionPose: AnimeActionPose = 'beach';
     if (
+      text.includes('德奥欣') ||
+      text.includes('deocin') ||
+      text.includes('live2d') ||
+      text.includes('拆件') ||
+      text.includes('拆解') ||
+      text.includes('闭合脸模') ||
+      text.includes('闭合头骨') ||
+      text.includes('闭合底模') ||
+      text.includes('双金条') ||
+      (text.includes('水手服') && (text.includes('短发') || text.includes('绿领') || text.includes('虎牙') || text.includes('呆毛') || text.includes('底模') || text.includes('可拆') || text.includes('测量')))
+    ) {
+      actionPose = 'deocin';
+    } else if (
       text.includes('希尔菲') ||
       text.includes('sylphie') ||
       text.includes('星蝶') ||
@@ -330,8 +347,31 @@ export class AiAnimeGenerator {
 
     let baseProject: ProjectData;
 
-    // Direct Recognition of Original Sylphie / Original Anime Request
+    // Direct Recognition of Live2D Flagship Deocin Masterpiece
     if (
+      pose === 'deocin' ||
+      text.includes('德奥欣') ||
+      text.includes('deocin') ||
+      text.includes('live2d') ||
+      text.includes('拆件') ||
+      text.includes('拆解') ||
+      text.includes('闭合脸模') ||
+      text.includes('闭合头骨') ||
+      text.includes('闭合底模') ||
+      text.includes('双金条') ||
+      (text.includes('水手服') && (text.includes('短发') || text.includes('绿领') || text.includes('虎牙') || text.includes('呆毛') || text.includes('底模') || text.includes('可拆') || text.includes('测量')))
+    ) {
+      baseProject = options.density === 10000 ? createDeocin10kProject() : createDeocinProject();
+      if (options.prompt?.trim() && !baseProject.title.includes(options.prompt.trim())) {
+        baseProject = {
+          ...baseProject,
+          title: `幻梦航标 · 德奥欣 (Live2D拆件) - ${options.prompt.trim()}`,
+        };
+      }
+      return baseProject;
+    }
+    // Direct Recognition of Original Sylphie / Original Anime Request
+    else if (
       pose === 'sylphie' ||
       text.includes('希尔菲') ||
       text.includes('sylphie') ||
@@ -397,6 +437,7 @@ export class AiAnimeGenerator {
   static getPresetPrompts() {
     return [
       { label: '🦋 星辉蝶愿 · 希尔菲 (原创)', prompt: '原创粉毛金瞳少女，流光星蝶魔法少女希尔菲，浮空召唤姿态与星空洛丽塔法裙' },
+      { label: '✨ 幻梦航标 · 德奥欣 (Live2D拆解)', prompt: '德奥欣短发水手服萌妹，闭合头骨脸模穿透遮挡与Live2D拆件规范，墨绿水手领配双金条' },
       { label: '🌅 晨光伸懒腰少女', prompt: '粉发晨光伸懒腰少女，微风白衬衫，仰头闭目治愈姿态' },
       { label: '✨ 高贵露背礼服回眸', prompt: '银紫发优雅大露背晚礼服回眸少女，紫花发饰高贵侧颜' },
       { label: '🎾 活力网球运动少女', prompt: '银发红瞳网球少女，运动挥拍擦汗，红白短裙活力跃动' },
@@ -416,6 +457,7 @@ export class AiAnimeGenerator {
     return `你是一个精通二次元动漫矢量图（SVG）与代码绘制的 AI 智能体。
 根据用户设定的任意角色形象与动作姿态，生成符合平台高精度规范的矢量工程。
 阶段规范：01初版草图 -> 02底色铺设 -> 03结构阴影 -> 04细部雕琢 -> 05神圣光晕。
-特征规范：必须拥有 DoG 墨线勾勒（line_art）为骨架，大块面纯净赛璐璐平涂（hair, clothes, iris）为基底，拒绝油画杂乱碎斑。`;
+特征规范：必须拥有 DoG 墨线勾勒（line_art）为骨架，大块面纯净赛璐璐平涂（hair, clothes, iris）为基底，拒绝油画杂乱碎斑。
+架构规范：全面支持 Live2D 规范拆件分层与穿透遮挡，底模头骨必须完整闭合（圆润饱满头盖骨穹顶），双眼五官完整绘制于脸模，发型部件独立可拆移，支持透叠爆炸图与测量 HUD。`;
   }
 }

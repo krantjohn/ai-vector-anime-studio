@@ -148,6 +148,12 @@ export interface StudioState {
   isPlaying: boolean;
   playbackSpeed: number;
 
+  // Live2D Dissection & Occlusion (Explode View & Overdraw)
+  isLive2dExploded: boolean;
+  live2dExplodeRatio: number;
+  dissectionOffsets: Record<string, { x: number; y: number }>;
+  activeDissectPart: string | null;
+
   // Code & DOM Inspector
   selectedNodeId: string | null;
   hoveredNodeId: string | null;
@@ -165,6 +171,13 @@ export interface StudioContextType extends StudioState {
   standaloneSvgSource?: string;
   domTree?: any[];
   setProject?: (project: any) => void;
+
+  // Live2D Dissection & Explode View Actions
+  toggleLive2dExplode: () => void;
+  setLive2dExplode: (exploded: boolean) => void;
+  setLive2dExplodeRatio: (ratio: number) => void;
+  setPartOffset: (partId: string, offset: { x: number; y: number }) => void;
+  resetDissectionOffsets: () => void;
 
   // Layer Actions
   toggleLayer: (id: LayerId) => void;

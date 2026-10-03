@@ -11,6 +11,7 @@ import {
   PenTool,
   RotateCcw,
   Target,
+  UnfoldVertical,
 } from 'lucide-react';
 import { useStudio } from '../../store/studioContext';
 import { LayerId, LAYER_DEFINITIONS } from '../../types/studio';
@@ -46,6 +47,10 @@ export const LayerFilterPanel: React.FC<LayerFilterPanelProps> = ({ className = 
     project,
     layers,
     soloLayer,
+    isLive2dExploded,
+    toggleLive2dExplode,
+    setPartOffset,
+    resetDissectionOffsets,
     toggleLayer,
     toggleSoloLayer,
     resetAllLayers,
@@ -88,6 +93,57 @@ export const LayerFilterPanel: React.FC<LayerFilterPanelProps> = ({ className = 
           <RotateCcw className="w-3 h-3" />
           <span>重置</span>
         </button>
+      </div>
+
+      {/* Live2D Dissection & Occlusion Studio Card */}
+      <div className="bg-zinc-950/70 border border-violet-500/40 rounded-xl p-3 flex flex-col gap-2.5 shadow-md shadow-violet-950/20">
+        <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-xs font-bold text-white">Live2D 拆件与穿透遮挡</span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono">
+            闭合底模
+          </span>
+        </div>
+
+        {/* 1-Click Explode Toggle Button */}
+        <button
+          onClick={toggleLive2dExplode}
+          data-testid="toggle-live2d-explode-button"
+          title="切换 Live2D 拆解爆炸图视图，移开前发露出完整闭合脸模"
+          className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 border transition-all ${
+            isLive2dExploded
+              ? 'bg-gradient-to-r from-amber-500/30 to-pink-500/30 text-amber-200 border-amber-500/60 shadow-md shadow-amber-500/20 ring-1 ring-amber-400/40'
+              : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-700'
+          }`}
+        >
+          <UnfoldVertical className="w-3.5 h-3.5 text-amber-400" />
+          <span>{isLive2dExploded ? '🧩 退出 Live2D 拆解 (还原)' : '🧩 一键 Live2D 拆解 (发型移开)'}</span>
+        </button>
+
+        {/* Quick presets */}
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <button
+            onClick={() => setPartOffset('hair_front', { x: 280, y: 35 })}
+            title="还原参考图 Illustrator 中将前发向右拖开 345pt 的经典拆解效果"
+            className="flex-1 py-1 px-2 rounded bg-zinc-900 hover:bg-zinc-800 text-amber-300 border border-zinc-800 hover:border-amber-500/40 transition-colors text-center font-medium"
+          >
+            发型右移 (+280pt)
+          </button>
+          <button
+            onClick={resetDissectionOffsets}
+            title="重置所有拆件位移，各图层部件归位"
+            className="py-1 px-2 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition-colors flex items-center gap-1"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>归位</span>
+          </button>
+        </div>
+
+        <div className="text-[10px] text-zinc-400 leading-tight bg-zinc-900/60 p-2 rounded border border-zinc-800/80">
+          💡 <strong>穿透遮挡特性</strong>：前发独立拆离后，底下保留完整的圆形头骨脸庞与完整眼眸，绝无镂空挖空；在画布中亦可<strong>按住 Shift 直接拖动发型部件</strong>。
+        </div>
       </div>
 
       {/* Solo Mode Notification Banner */}

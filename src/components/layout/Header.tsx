@@ -8,11 +8,13 @@ import {
   Upload, 
   HelpCircle,
   Eye,
-  Wand2
+  Wand2,
+  UnfoldVertical,
 } from 'lucide-react';
 import { useStudio } from '../../store/studioContext';
 import { createMasterMikaBaseProject, createMasterMika10kProject } from '../../data/masterMikaProject';
 import { createSylphieProject } from '../../data/sylphieProject';
+import { createDeocinProject } from '../../data/deocinProject';
 import { DEFAULT_ANIME_PROJECT } from '../../data/defaultAnimeProject';
 import { StepDensityEngine } from '../../engine/stepDensityEngine';
 import { AiAnimeGenerator } from '../../engine/aiAnimeGenerator';
@@ -42,6 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
     totalSteps,
     currentStage,
     soloLayer,
+    isLive2dExploded,
+    toggleLive2dExplode,
     project,
     setProject,
     setCurrentStep,
@@ -51,9 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="h-14 min-h-[56px] bg-studio-header border-b border-studio-border px-4 flex items-center justify-between z-20 select-none">
       {/* Brand & Project Status */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2.5 flex-shrink-0">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-amber-500 flex items-center justify-center shadow-lg shadow-violet-900/30">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-amber-500 flex items-center justify-center shadow-lg shadow-violet-900/30 flex-shrink-0">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -65,11 +69,13 @@ export const Header: React.FC<HeaderProps> = ({
                 v1.0
               </span>
             </div>
-            <div className="text-[11px] text-zinc-400 flex items-center space-x-2">
-              <span>二次元代码矢量演进平台</span>
-              <span>•</span>
-              <span className="text-amber-400 font-medium">
-                {project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
+            <div className="text-[11px] text-zinc-400 flex items-center space-x-1.5">
+              <span className="hidden sm:inline">二次元代码矢量演进平台</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="text-amber-400 font-medium truncate max-w-[150px] sm:max-w-none">
+                {project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
+                  ? '幻梦航标 · 德奥欣 (Live2D拆件)'
+                  : project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
                   ? '星辉蝶愿 · 希尔菲 (原创粉毛金瞳)'
                   : project?.title?.includes('Penia') || project?.title?.includes('手绘墨线')
                   ? '手绘墨线 · Penia粉发原画'
@@ -110,7 +116,9 @@ export const Header: React.FC<HeaderProps> = ({
               <select
                 aria-label="选择演示作品"
                 value={
-                  project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
+                  project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
+                    ? 'deocin'
+                    : project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
                     ? 'sylphie'
                     : project?.title?.includes('Penia') || project?.title?.includes('手绘墨线')
                     ? 'penia'
@@ -150,7 +158,9 @@ export const Header: React.FC<HeaderProps> = ({
                 }
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === 'sylphie') {
+                  if (val === 'deocin') {
+                    setProject?.(createDeocinProject());
+                  } else if (val === 'sylphie') {
                     setProject?.(createSylphieProject());
                   } else if (val === 'penia') {
                     setProject?.(AiAnimeGenerator.generateProject({ prompt: '手绘墨线 Penia 粉发原画' }));
@@ -190,8 +200,9 @@ export const Header: React.FC<HeaderProps> = ({
                     setProject?.(DEFAULT_ANIME_PROJECT);
                   }
                 }}
-                className="inline-block bg-zinc-900/90 border border-violet-600/70 rounded px-2 py-0.5 text-[11px] text-amber-300 focus:outline-none focus:border-violet-400 font-sans ml-1.5 cursor-pointer shadow-sm shadow-violet-950/50"
+                className="inline-block max-w-[210px] truncate bg-zinc-900/90 border border-violet-600/70 rounded px-2 py-0.5 text-[11px] text-amber-300 focus:outline-none focus:border-violet-400 font-sans ml-1.5 cursor-pointer shadow-sm shadow-violet-950/50"
               >
+                <option value="deocin">✨ 幻梦航标 · 德奥欣 (Live2D 拆件级 · 水手服紫发金瞳)</option>
                 <option value="sylphie">🦋 星辉蝶愿 · 希尔菲 (原创粉毛金瞳 · 流光星蝶浮空少女)</option>
                 <option value="stretch">🌅 晨光舒展 · 伸懒腰少女 (仰头舒展晨曦治愈姿态)</option>
                 <option value="glance">💃 高贵晚宴 · 露背礼服回眸 (优雅大露背侧颜高贵姿态)</option>
@@ -213,12 +224,25 @@ export const Header: React.FC<HeaderProps> = ({
                 <option value="default">💜 紫发金瞳少女 (43 步基础线稿原型)</option>
               </select>
 
+              {/* 1-Click Live2D Flagship Deocin Recommendation Pill */}
+              <button
+                type="button"
+                onClick={() => setProject?.(createDeocinProject())}
+                title="1键载入Live2D拆件旗舰杰作: 幻梦航标 · 德奥欣 (水手服紫发金瞳 · 完整闭合头骨脸模与独立可拆前发)"
+                aria-label="Live2D推荐: 德奥欣"
+                className="hidden sm:inline-flex items-center gap-1 ml-1.5 px-2 py-0.5 rounded bg-gradient-to-r from-amber-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 border border-amber-500/40 text-[11px] text-amber-300 hover:text-amber-100 transition-colors cursor-pointer shadow-sm shadow-amber-950/40"
+              >
+                <span>✨</span>
+                <span className="font-medium">Live2D推荐: 德奥欣</span>
+              </button>
+
               {/* 1-Click Original Masterpiece Recommendation Pill */}
               <button
                 type="button"
                 onClick={() => setProject?.(createSylphieProject())}
                 title="1键快速载入原创杰作: 星辉蝶愿 · 希尔菲 (粉毛金瞳少女身材 · 1963真实矢量步)"
-                className="hidden sm:inline-flex items-center gap-1 ml-1.5 px-2 py-0.5 rounded bg-gradient-to-r from-pink-500/20 to-amber-500/20 hover:from-pink-500/30 hover:to-amber-500/30 border border-pink-500/40 text-[11px] text-pink-300 hover:text-pink-100 transition-colors cursor-pointer shadow-sm shadow-pink-950/40"
+                aria-label="原创推荐: 希尔菲"
+                className="hidden md:inline-flex items-center gap-1 ml-1.5 px-2 py-0.5 rounded bg-gradient-to-r from-pink-500/20 to-amber-500/20 hover:from-pink-500/30 hover:to-amber-500/30 border border-pink-500/40 text-[11px] text-pink-300 hover:text-pink-100 transition-colors cursor-pointer shadow-sm shadow-pink-950/40"
               >
                 <span>🦋</span>
                 <span className="font-medium">原创推荐: 希尔菲</span>
@@ -229,7 +253,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Central Indicator Badge */}
-      <div className="hidden md:flex items-center space-x-3 bg-studio-bg/80 border border-studio-border px-3 py-1 rounded-full text-xs">
+      <div className="hidden xl:flex items-center space-x-3 bg-studio-bg/80 border border-studio-border px-3 py-1 rounded-full text-xs flex-shrink-0">
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
           <span className="text-zinc-300 font-medium">
@@ -278,6 +302,22 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <RotateCcw className="w-4 h-4" />
           <span className="hidden lg:inline">重置</span>
+        </button>
+
+        <button
+          onClick={toggleLive2dExplode}
+          title="切换 Live2D 拆解视图 (移开前发露出完整闭合脸模与双眼)"
+          aria-label="Live2D 拆解视图"
+          aria-pressed={isLive2dExploded}
+          data-testid="header-live2d-explode-button"
+          className={`p-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border transition-all ${
+            isLive2dExploded
+              ? 'bg-gradient-to-r from-amber-500/30 to-pink-500/30 text-amber-200 border-amber-500/60 shadow-sm shadow-amber-500/20 ring-1 ring-amber-400/40'
+              : 'bg-zinc-800/60 text-zinc-300 border-zinc-700 hover:bg-zinc-800 hover:text-white'
+          }`}
+        >
+          <UnfoldVertical className="w-4 h-4 text-amber-400" />
+          <span className="hidden lg:inline">{isLive2dExploded ? 'Live2D 拆解中' : 'Live2D 拆解'}</span>
         </button>
 
         <div className="h-4 w-[1px] bg-zinc-800 mx-1 hidden sm:block" />
