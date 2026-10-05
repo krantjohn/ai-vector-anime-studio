@@ -5,6 +5,15 @@
 </p>
 
 <p align="center">
+  <a href="README_EN.md"><img src="https://img.shields.io/badge/Language-English-blue?style=flat-square" alt="English Documentation"></a>
+  <a href="README.md"><img src="https://img.shields.io/badge/语言-简体中文-red?style=flat-square" alt="中文文档"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white&style=flat-square" alt="Node.js"></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black&style=flat-square" alt="React"></a>
+  <a href="https://vitejs.dev/"><img src="https://img.shields.io/badge/Vite-5+-646CFF?logo=vite&logoColor=white&style=flat-square" alt="Vite"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+</p>
+
+<p align="center">
   <strong>基于 Web 的现代化二次元 AI 代码矢量图绘制、7 阶图层调试与微步过程回放开发平台</strong>
 </p>
 
@@ -109,4 +118,4 @@ npm test
 
 ## 📄 开源许可
 
-[MIT License](LICENSE)
+本项目采用 [MIT License](LICENSE) 开源许可。
