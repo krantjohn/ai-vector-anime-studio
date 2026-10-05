@@ -86,9 +86,8 @@ export const ImageVectorizerModal: React.FC<ImageVectorizerModalProps> = ({ isOp
     img.crossOrigin = 'anonymous';
     img.onload = async () => {
       try {
-        const proj = await ImageVectorizer.vectorizeImage(img, {
-          colorCount,
-        });
+        // Use high-precision semantic layer vectorizer pipeline
+        const proj = await ImageVectorizer.vectorizeBase64(dataUrl, 'AI 图像分层矢量工程', 10000);
 
         const finalProj = enable10k
           ? (proj.steps.length >= 10000 ? proj : StepDensityEngine.scaleProjectToDensity(proj, 10000))

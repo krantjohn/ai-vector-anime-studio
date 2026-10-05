@@ -15,6 +15,7 @@ import { useStudio } from '../../store/studioContext';
 import { createMasterMikaBaseProject, createMasterMika10kProject } from '../../data/masterMikaProject';
 import { createSylphieProject } from '../../data/sylphieProject';
 import { createDeocinProject } from '../../data/deocinProject';
+import { createKoharuProject } from '../../data/koharuProject';
 import { DEFAULT_ANIME_PROJECT } from '../../data/defaultAnimeProject';
 import { StepDensityEngine } from '../../engine/stepDensityEngine';
 import { AiAnimeGenerator } from '../../engine/aiAnimeGenerator';
@@ -73,7 +74,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">二次元代码矢量演进平台</span>
               <span className="hidden sm:inline">•</span>
               <span className="text-amber-400 font-medium truncate max-w-[150px] sm:max-w-none">
-                {project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
+                {project?.title?.includes('小春') || project?.title?.includes('Koharu')
+                  ? '魅惑女仆 · 小春 (语义图层拆分)'
+                  : project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
                   ? '幻梦航标 · 德奥欣 (Live2D拆件)'
                   : project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
                   ? '星辉蝶愿 · 希尔菲 (原创粉毛金瞳)'
@@ -116,7 +119,9 @@ export const Header: React.FC<HeaderProps> = ({
               <select
                 aria-label="选择演示作品"
                 value={
-                  project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
+                  project?.title?.includes('小春') || project?.title?.includes('Koharu')
+                    ? 'koharu'
+                    : project?.title?.includes('德奥欣') || project?.title?.includes('Deocin') || project?.title?.includes('Live2D')
                     ? 'deocin'
                     : project?.title?.includes('希尔菲') || project?.title?.includes('Sylphie') || project?.title?.includes('星辉蝶愿')
                     ? 'sylphie'
@@ -158,7 +163,9 @@ export const Header: React.FC<HeaderProps> = ({
                 }
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === 'deocin') {
+                  if (val === 'koharu') {
+                    setProject?.(createKoharuProject());
+                  } else if (val === 'deocin') {
                     setProject?.(createDeocinProject());
                   } else if (val === 'sylphie') {
                     setProject?.(createSylphieProject());
@@ -202,6 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
                 className="inline-block max-w-[210px] truncate bg-zinc-900/90 border border-violet-600/70 rounded px-2 py-0.5 text-[11px] text-amber-300 focus:outline-none focus:border-violet-400 font-sans ml-1.5 cursor-pointer shadow-sm shadow-violet-950/50"
               >
+                <option value="koharu">⭐ 魅惑女仆 · 小春 (精准语义图层拆分 · 双马尾与粉发)</option>
                 <option value="deocin">✨ 幻梦航标 · 德奥欣 (Live2D 拆件级 · 水手服紫发金瞳)</option>
                 <option value="sylphie">🦋 星辉蝶愿 · 希尔菲 (原创粉毛金瞳 · 流光星蝶浮空少女)</option>
                 <option value="stretch">🌅 晨光舒展 · 伸懒腰少女 (仰头舒展晨曦治愈姿态)</option>
@@ -223,6 +231,18 @@ export const Header: React.FC<HeaderProps> = ({
                 <option value="magical">💫 星之双马尾魔法少女 (星辰双马尾星光权杖)</option>
                 <option value="default">💜 紫发金瞳少女 (43 步基础线稿原型)</option>
               </select>
+
+              {/* 1-Click Koharu Recommendation Pill */}
+              <button
+                type="button"
+                onClick={() => setProject?.(createKoharuProject())}
+                title="1键载入语义图层拆分杰作: 魅惑女仆 · 小春 (Blue Archive 下江小春 · 干净独立头发/五官/身体/服饰/背景)"
+                aria-label="图层拆分推荐: 小春"
+                className="hidden sm:inline-flex items-center gap-1 ml-1.5 px-2 py-0.5 rounded bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 border border-pink-500/50 text-[11px] text-pink-300 hover:text-pink-100 transition-colors cursor-pointer shadow-sm shadow-pink-950/40"
+              >
+                <span>⭐</span>
+                <span className="font-medium">精准分层: 女仆小春</span>
+              </button>
 
               {/* 1-Click Live2D Flagship Deocin Recommendation Pill */}
               <button

@@ -18,6 +18,7 @@ import { DEFAULT_ANIME_PROJECT } from '../data/defaultAnimeProject';
 import { createMasterMikaBaseProject, createMasterMika10kProject } from '../data/masterMikaProject';
 import { createSylphieProject, createSylphie10kProject } from '../data/sylphieProject';
 import { createDeocinProject, createDeocin10kProject, DEOCIN_PROJECT } from '../data/deocinProject';
+import { createKoharuProject } from '../data/koharuProject';
 import { ExporterEngine } from '../engine/exporter';
 import { ProjectData } from '../types/anime';
 
@@ -66,6 +67,7 @@ export const StudioProvider: React.FC<StudioProviderProps> = ({
     if (typeof window !== 'undefined' && window.location?.search) {
       const params = new URLSearchParams(window.location.search);
       const proj = params.get('project');
+      if (proj === 'koharu' || proj === 'maid') return createKoharuProject();
       if (proj === 'deocin10k') return createDeocin10kProject();
       if (proj === 'deocin' || proj === 'live2d') return createDeocinProject();
       if (proj === 'sylphie10k') return createSylphie10kProject();
